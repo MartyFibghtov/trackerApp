@@ -13,6 +13,7 @@ import android.content.Context;
 import android.location.Location;
 import android.location.LocationListener;
 import android.location.LocationManager;
+import android.os.Handler;
 import android.provider.Settings;
 import android.telephony.SmsManager;
 import android.widget.TextView;
@@ -34,6 +35,42 @@ public class MainActivity extends Activity {
     private LocationListener locationListener;
 
     public String phoneNum;
+    private Handler mHandler = new Handler();
+
+    String sms_id;
+    SMS sms;
+
+
+
+    public void startRepeating() {
+        smsRunnable.run();
+    }
+    public void stopRepeating() {
+        mHandler.removeCallbacks(smsRunnable);
+    }
+
+    private Runnable smsRunnable = new Runnable() {
+
+        @Override
+        public void run() {
+            if (!sms.text.equals("150")){// sms.phone.equals(bike.phone_number)) {
+                sms_id = sms.id;
+                phoneNum = sms.phone;
+                Toast.makeText(getApplicationContext(), phoneNum, Toast.LENGTH_SHORT).show();
+                stopRepeating();
+            }
+            sms = checkSMS();
+
+            mHandler.postDelayed(this, 5000);
+        }
+    };
+
+
+
+
+
+
+
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -47,18 +84,8 @@ public class MainActivity extends Activity {
         }, 10);
 
         SMS sms = checkSMS();
-        tv.setText(sms.toString());
-        System.out.println(sms.toString());
-        String sms_id = sms.id;
-
-        while (!sms.text.equals("150")) {
-            try {
-                Thread.sleep(10 * 1000);
-            } catch (InterruptedException e) {
-                e.printStackTrace();
-            }
-            sms = checkSMS();
-        }
+        sms_id = sms.id;
+        startRepeating();
 
         phoneNum = sms.phone;
 
