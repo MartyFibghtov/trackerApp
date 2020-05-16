@@ -2,8 +2,10 @@ package com.example.tracker;
 
 import android.Manifest;
 import android.app.Dialog;
+import android.content.BroadcastReceiver;
 import android.content.DialogInterface;
 import android.content.Intent;
+import android.content.IntentFilter;
 import android.content.pm.PackageManager;
 import android.database.Cursor;
 import android.net.Uri;
@@ -15,6 +17,7 @@ import android.location.LocationListener;
 import android.location.LocationManager;
 import android.os.Handler;
 import android.provider.Settings;
+import android.provider.SyncStateContract;
 import android.telephony.SmsManager;
 import android.widget.TextView;
 
@@ -25,6 +28,7 @@ import androidx.annotation.NonNull;
 import androidx.appcompat.app.AlertDialog;
 import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
+import androidx.localbroadcastmanager.content.LocalBroadcastManager;
 
 import com.javapapers.android.geolocationfinder.R;
 
@@ -40,6 +44,14 @@ public class MainActivity extends Activity {
     String sms_id;
     SMS sms;
 
+    @Override
+    protected void onStart(){
+        super.onStart();
+        IntentFilter intentFilter = new IntentFilter(); // обработчик результатат работы сервиса к
+        intentFilter.addAction("START_LOCATION");
+        LocalBroadcastManager.getInstance(this).registerReceiver(broadcastReceiver, intentFilter);
+    }
+
 
 
     public void startRepeating() {
@@ -53,17 +65,50 @@ public class MainActivity extends Activity {
 
         @Override
         public void run() {
-            if (!sms.text.equals("150")){// sms.phone.equals(bike.phone_number)) {
+            Log.i("Current sms", sms.text.trim());
+            Log.i("locationListenernotnull", String.valueOf((locationListener != null)));
+
+            if (sms.text.trim().equals("150") && locationListener != null){
+
+                Log.i("Got 150", sms.phone);
+
                 sms_id = sms.id;
                 phoneNum = sms.phone;
-                Toast.makeText(getApplicationContext(), phoneNum, Toast.LENGTH_SHORT).show();
-                stopRepeating();
+
+                broadcastStartLocation();
+
+
+
             }
+
             sms = checkSMS();
 
-            mHandler.postDelayed(this, 5000);
+            mHandler.postDelayed(this, 2000);
+        }
+        private void broadcastStartLocation(){
+            Intent intent = new Intent(Constants.BROADCAST_START_LOCATION);
+            LocalBroadcastManager.getInstance(getApplicationContext()).sendBroadcast(intent);
+            sendBroadcast(intent);
+        }
+
+    };
+
+    BroadcastReceiver broadcastReceiver = new BroadcastReceiver() {
+        @Override
+        public void onReceive(Context context, Intent intent) {
+            String action = intent.getAction();
+            assert action != null;
+            if (action.equals(Constants.BROADCAST_START_LOCATION)) {
+                stopRepeating();
+                configureLocation();
+                Toast.makeText(context, "Starting", Toast.LENGTH_SHORT).show();
+            }
+            //throw new UnsupportedOperationException("Not yet implemented");
+
         }
     };
+
+
 
 
 
@@ -82,20 +127,13 @@ public class MainActivity extends Activity {
         requestPermissions(new String[]{
                 Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION, Manifest.permission.INTERNET, Manifest.permission.READ_SMS, Manifest.permission.SEND_SMS
         }, 10);
-
-        SMS sms = checkSMS();
-        sms_id = sms.id;
-        startRepeating();
-
-        phoneNum = sms.phone;
-
         locationManager = (LocationManager) getSystemService(LOCATION_SERVICE);
         locationListener = new LocationListener() {
             @Override
             public void onLocationChanged(Location location) {
-                Toast.makeText(getApplicationContext(),
-                        "Sending location",
-                        Toast.LENGTH_SHORT).show();
+                Log.i("Sending location", location.toString());
+
+
                 Double latitude = location.getLatitude();
                 Double longitude = location.getLongitude();
                 String smsText = latitude + "!==!" + longitude;
@@ -125,14 +163,20 @@ public class MainActivity extends Activity {
             }
         };
 
-        configureLocation();
+        sms = checkSMS();
+        sms_id = sms.id;
+        startRepeating();
+
+
+
 
     }
 
     public void sendSMS(String phoneNumber, String smsText){
-        System.out.println(smsText);
         SmsManager smsManager = SmsManager.getDefault();
-        smsManager.sendTextMessage(phoneNumber, null, smsText, null, null);
+        if (phoneNumber != null && smsText != null) {
+            smsManager.sendTextMessage(phoneNumber, null, smsText, null, null);
+        }
     }
 
     @Override
@@ -147,7 +191,7 @@ public class MainActivity extends Activity {
 
 
     public void configureLocation() {
-        locationManager.requestLocationUpdates("gps", 20*1000, 0, locationListener);
+        locationManager.requestLocationUpdates("gps", 4*1000, 5, locationListener);
     }
 
     public SMS checkSMS() {
@@ -159,7 +203,6 @@ public class MainActivity extends Activity {
         String phone = cursor.getString(2);
         String id = cursor.getString(0);
         SMS sms = new SMS(id, text, phone);
-        Toast.makeText(this, sms.text, Toast.LENGTH_SHORT).show();
 
         return sms;
     }
