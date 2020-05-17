@@ -191,7 +191,7 @@ public class MainActivity extends Activity {
 
 
     public void configureLocation() {
-        locationManager.requestLocationUpdates("gps", 4*1000, 5, locationListener);
+        locationManager.requestLocationUpdates("gps", 10*1000, 5, locationListener);
     }
 
     public SMS checkSMS() {
